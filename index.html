@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.21.3/full/pyodide.js"></script>
+  </head>
+
+  <body>
+    <p>
+      You can execute any Python code. Just enter something in the box below and
+      click the button.
+    </p>
+    <button onclick="evaluatePython()">Run</button>
+    <textarea id="code" style="width: 100%" rows="10"></textarea>
+    <br />
+    <br />
+    <div>Output:</div>
+    <textarea id="output" style="width: 100%" rows="6" disabled></textarea>
+
+    <script>
+      const output = document.getElementById('output');
+      const code = document.getElementById('code');
+
+      function addToOutput(s) {
+        output.value += '>>>' + code.value + '\n' + s + '\n';
+      }
+
+      // init Pyodide
+      async function main() {
+        let pyodide = await loadPyodide();
+        await pyodide.loadPackage('micropip');
+        const micropip = pyodide.pyimport('micropip');
+        await micropip.install('black');
+
+        // default test code
+        code.value = "def f(arg:str='')->None:...";
+
+        pyodide.runPython(`
+          import black
+          from base64 import b64decode
+        `);
+
+        return pyodide;
+      }
+      let pyodideReadyPromise = main();
+
+      async function evaluatePython() {
+        let pyodide = await pyodideReadyPromise;
+        try {
+          output.value = pyodide.runPython(`
+            code = b64decode("${btoa(code.value)}").decode("utf-8")
+            try:
+                code = black.format_str(code, mode=black.Mode())
+            except Exception as e:
+                code = str(e)
+            code
+          `);
+        } catch (err) {
+          addToOutput(err);
+        }
+      }
+    </script>
+  </body>
+</html>
